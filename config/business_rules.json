@@ -1,0 +1,182 @@
+[
+  {
+    "name": "salary_information",
+    "description": "Information about employee salaries, wages, or compensation",
+    "examples": [
+      "My salary is $75,000 per year",
+      "I got a raise to $80k",
+      "The new hire's compensation package",
+      "Annual bonus of $10,000",
+      "Hourly wage increased to $35",
+      "My base pay is competitive",
+      "Stock options worth $50k"
+    ],
+    "category": "financial",
+    "severity": "HIGH"
+  },
+  {
+    "name": "company_financials",
+    "description": "Company financial information and performance data",
+    "examples": [
+      "Our quarterly revenue was $2.5M",
+      "The company lost $500k last quarter",
+      "Budget allocation for next year",
+      "Profit margins are declining",
+      "Investment rounds and funding",
+      "Cash flow is tight this month",
+      "We need to cut costs by 20%"
+    ],
+    "category": "financial",
+    "severity": "HIGH"
+  },
+  {
+    "name": "employee_performance",
+    "description": "Employee performance reviews and evaluations",
+    "examples": [
+      "John's performance review was poor",
+      "She received an excellent rating",
+      "Performance improvement plan",
+      "Annual review scores",
+      "Employee evaluation metrics",
+      "He's not meeting expectations",
+      "Top performer in the team"
+    ],
+    "category": "hr",
+    "severity": "MEDIUM"
+  },
+  {
+    "name": "layoffs_restructuring",
+    "description": "Information about layoffs, firings, or company restructuring",
+    "examples": [
+      "We're planning layoffs next month",
+      "The engineering team will be reduced",
+      "Restructuring the sales department",
+      "Budget cuts affecting headcount",
+      "Termination decisions",
+      "Downsizing due to market conditions",
+      "Several people will be let go"
+    ],
+    "category": "hr",
+    "severity": "HIGH"
+  },
+  {
+    "name": "product_strategy",
+    "description": "Confidential product development and business strategy",
+    "examples": [
+      "Our new product launch strategy",
+      "Competitive analysis and positioning",
+      "Product roadmap for next year",
+      "Market expansion plans",
+      "Proprietary technology details",
+      "Secret feature we're developing",
+      "Patent application submitted"
+    ],
+    "category": "business",
+    "severity": "HIGH"
+  },
+  {
+    "name": "client_information",
+    "description": "Confidential client or customer information",
+    "examples": [
+      "Client ABC Corp signed a $1M deal",
+      "Customer complaints about our service",
+      "Client meeting notes and discussions",
+      "Customer contract terms",
+      "Account management strategies",
+      "VIP customer requirements",
+      "Client's confidential data"
+    ],
+    "category": "business",
+    "severity": "MEDIUM"
+  },
+  {
+    "name": "legal_matters",
+    "description": "Legal issues, disputes, or compliance matters",
+    "examples": [
+      "The lawsuit against our company",
+      "Compliance violation discovered",
+      "Legal counsel's advice on the matter",
+      "Settlement negotiations",
+      "Regulatory investigation",
+      "Potential legal liability",
+      "Contract dispute with vendor"
+    ],
+    "category": "legal",
+    "severity": "HIGH"
+  },
+  {
+    "name": "merger_acquisition",
+    "description": "Information about mergers, acquisitions, or partnerships",
+    "examples": [
+      "We're acquiring Company XYZ",
+      "Merger discussions with competitor",
+      "Due diligence process ongoing",
+      "Strategic partnership negotiations",
+      "Acquisition target evaluation",
+      "Potential buyer interested",
+      "Integration planning phase"
+    ],
+    "category": "business",
+    "severity": "HIGH"
+  },
+  {
+    "name": "internal_processes",
+    "description": "Internal company processes and procedures",
+    "examples": [
+      "Our hiring process needs improvement",
+      "Internal audit findings",
+      "Process optimization initiatives",
+      "Workflow automation plans",
+      "Operational efficiency metrics",
+      "Internal policy changes",
+      "Procedure documentation update"
+    ],
+    "category": "internal",
+    "severity": "LOW"
+  },
+  {
+    "name": "technology_infrastructure",
+    "description": "IT infrastructure and security information",
+    "examples": [
+      "Server migration planned for weekend",
+      "Security vulnerability discovered",
+      "Database performance issues",
+      "Network architecture changes",
+      "Cloud infrastructure costs",
+      "System outage last night",
+      "Backup and recovery procedures"
+    ],
+    "category": "technical",
+    "severity": "MEDIUM"
+  },
+  {
+    "name": "customer_data_privacy",
+    "description": "Customer personal data and privacy information",
+    "examples": [
+      "Customer's social security number",
+      "Personal email addresses leaked",
+      "User behavior tracking data",
+      "Customer payment information",
+      "Privacy policy violations",
+      "GDPR compliance issues",
+      "Data breach incident report"
+    ],
+    "category": "privacy",
+    "severity": "HIGH"
+  },
+  {
+    "name": "executive_communications",
+    "description": "Executive-level communications and decisions",
+    "examples": [
+      "CEO's private meeting notes",
+      "Board of directors discussion",
+      "Executive compensation details",
+      "Strategic planning session",
+      "Leadership team decisions",
+      "C-suite confidential matters",
+      "Executive succession planning"
+    ],
+    "category": "executive",
+    "severity": "HIGH"
+  }
+] 

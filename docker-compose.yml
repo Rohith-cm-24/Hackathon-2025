@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  info-checker-service:
+    build: .
+    ports:
+      - "50051:50051"
+    volumes:
+      - ./logs:/app/logs
+      - ./config:/app/config
+      - ./data:/app/data
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; s = socket.socket(); result = s.connect_ex(('localhost', 50051)); s.close(); exit(0 if result == 0 else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Optional: Add a client service for testing
+  info-checker-client:
+    build: .
+    depends_on:
+      - info-checker-service
+    command: python examples/client_example.py
+    volumes:
+      - ./logs:/app/logs
+    environment:
+      - PYTHONUNBUFFERED=1
+    profiles:
+      - testing 

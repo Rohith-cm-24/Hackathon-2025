@@ -1,0 +1,67 @@
+syntax = "proto3";
+
+package info_checker;
+
+// Service definition for checking sensitive information
+service InfoChecker {
+  // Check a single text for sensitive content
+  rpc CheckText(CheckRequest) returns (CheckResponse);
+  
+  // Batch check multiple texts
+  rpc CheckBatch(BatchCheckRequest) returns (BatchCheckResponse);
+  
+  // Health check for service availability
+  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+}
+
+// Request message for single text check
+message CheckRequest {
+  string text = 1;
+  repeated string custom_rules = 2;  // Optional custom rules for this check
+  double similarity_threshold = 3;   // Optional threshold override
+}
+
+// Response message for single text check
+message CheckResponse {
+  bool is_sensitive = 1;
+  repeated SensitiveMatch matches = 2;
+  string overall_risk_level = 3;  // LOW, MEDIUM, HIGH
+  double confidence_score = 4;
+}
+
+// Information about a specific sensitive match
+message SensitiveMatch {
+  string match_type = 1;           // KEYWORD, REGEX, PII, SEMANTIC
+  string rule_name = 2;            // Name of the rule that matched
+  string matched_text = 3;         // The actual text that matched
+  double confidence = 4;           // Confidence score for this match
+  int32 start_position = 5;        // Start position in original text
+  int32 end_position = 6;          // End position in original text
+  string explanation = 7;          // Human-readable explanation
+}
+
+// Request for batch checking
+message BatchCheckRequest {
+  repeated CheckRequest requests = 1;
+}
+
+// Response for batch checking
+message BatchCheckResponse {
+  repeated CheckResponse responses = 1;
+}
+
+// Health check request
+message HealthCheckRequest {
+  string service = 1;
+}
+
+// Health check response
+message HealthCheckResponse {
+  enum ServingStatus {
+    UNKNOWN = 0;
+    SERVING = 1;
+    NOT_SERVING = 2;
+  }
+  ServingStatus status = 1;
+  string message = 2;
+} 

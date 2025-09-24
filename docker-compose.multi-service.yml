@@ -1,0 +1,82 @@
+version: '3.8'
+
+services:
+  # Main sensitive information checker service
+  info-checker-service:
+    build: .
+    ports:
+      - "50051:50051"
+    volumes:
+      - ./logs:/app/logs
+      - ./config:/app/config
+      - ./data:/app/data
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; s = socket.socket(); result = s.connect_ex(('localhost', 50051)); s.close(); exit(0 if result == 0 else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - app-network
+
+  # Example client service that uses the info-checker
+  example-client-service:
+    build: .
+    depends_on:
+      - info-checker-service
+    command: python examples/other_service_example.py
+    volumes:
+      - ./logs:/app/logs
+    environment:
+      - PYTHONUNBUFFERED=1
+      - INFO_CHECKER_HOST=info-checker-service:50051
+    networks:
+      - app-network
+
+  # Example web API service
+  web-api-service:
+    build: .
+    ports:
+      - "8080:8080"
+    depends_on:
+      - info-checker-service
+    command: python -c "
+      import sys, os;
+      sys.path.insert(0, '/app/examples');
+      from web_api_example import app;
+      app.run(host='0.0.0.0', port=8080, debug=True)
+      "
+    volumes:
+      - ./logs:/app/logs
+    environment:
+      - PYTHONUNBUFFERED=1
+      - INFO_CHECKER_HOST=info-checker-service:50051
+    networks:
+      - app-network
+
+  # Example message queue consumer
+  queue-consumer:
+    build: .
+    depends_on:
+      - info-checker-service
+    command: python examples/queue_consumer_example.py
+    volumes:
+      - ./logs:/app/logs
+    environment:
+      - PYTHONUNBUFFERED=1
+      - INFO_CHECKER_HOST=info-checker-service:50051
+    networks:
+      - app-network
+    profiles:
+      - with-queue
+
+networks:
+  app-network:
+    driver: bridge
+
+# To run specific combinations:
+# docker-compose -f docker-compose.multi-service.yml up info-checker-service example-client-service
+# docker-compose -f docker-compose.multi-service.yml up --profile with-queue 
