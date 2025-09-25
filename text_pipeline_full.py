@@ -42,7 +42,7 @@ MONEY_REGEX = re.compile(
 IP_REGEX = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
 EMAIL_REGEX = re.compile(r"[a-zA-Z0-9+_.-]+@[a-zA-Z0-9.-]+")
 
-SEMANTIC_MATCH_THRESHOLD = 0.65  # tune this in prod
+SEMANTIC_MATCH_THRESHOLD = 0.78  # tune this in prod - increased to reduce false positives
 MAX_RETRIES = 2
 RETRY_DELAY_SECONDS = 5
 WORKER_COUNT = 2
@@ -63,6 +63,7 @@ POLICIES = [
     {"policy_id": "p_salary", "text": "Do not share details about salary or CTC."},
     {"policy_id": "p_pii", "text": "Do not share personal identifiers such as SSN, passport, Aadhar."},
     {"policy_id": "p_ip", "text": "IP addresses are sensitive network artifacts."},
+    {"policy_id": "Revenue", "text": "Do not share details about revenue or financial information."},
 ]
 
 if LANCEDB_AVAILABLE:
@@ -189,7 +190,7 @@ def cosine_similarity(a: List[float], b: List[float]) -> float:
         return 0.0
     return dot / (na*nb)
 
-def semantic_search_against_policies(embedding: List[float], top_k: int = 5) -> List[dict]:
+def semantic_search_against_policies(embedding: List[float], top_k: int = 2) -> List[dict]:
     hits = []
     if LANCEDB_AVAILABLE:
         # Prefer new API style; fallback if it fails
@@ -197,38 +198,41 @@ def semantic_search_against_policies(embedding: List[float], top_k: int = 5) -> 
             results = policy_table.search(embedding).limit(top_k).to_list()
             for r in results:
                 if isinstance(r, dict):
-                    score = float(r.get("score", r.get("_distance", 0.0)))
+                    # LanceDB returns distance, convert to similarity
+                    distance = float(r.get("score", r.get("_distance", 2.0)))
+                    similarity = max(0.0, 1.0 - (distance / 2.0))  # Convert cosine distance to similarity
                     pid = r.get("policy_id")
                     ptext = r.get("text")
-                    if score >= SEMANTIC_MATCH_THRESHOLD:
-                        hits.append({"policy_id": pid, "policy_text": ptext, "score": score})
+                    if similarity >= SEMANTIC_MATCH_THRESHOLD:
+                        hits.append({"policy_id": pid, "policy_text": ptext, "score": similarity})
         except Exception:
             try:
                 # Older style example path
                 results = policy_table.search(embedding, limit=top_k)
                 for r in results:
-                    score = float(r.get("score", 0.0)) if isinstance(r, dict) else 0.0
+                    distance = float(r.get("score", 2.0)) if isinstance(r, dict) else 2.0
+                    similarity = max(0.0, 1.0 - (distance / 2.0))  # Convert distance to similarity
                     row = r.get("row", r) if isinstance(r, dict) else r
                     pid = row.get("policy_id") if isinstance(row, dict) else getattr(row, "policy_id", None)
                     ptext = row.get("text") if isinstance(row, dict) else getattr(row, "text", None)
-                    if score >= SEMANTIC_MATCH_THRESHOLD:
-                        hits.append({"policy_id": pid, "policy_text": ptext, "score": score})
+                    if similarity >= SEMANTIC_MATCH_THRESHOLD:
+                        hits.append({"policy_id": pid, "policy_text": ptext, "score": similarity})
             except Exception:
                 # Final fallback: compute in-memory
                 for p in POLICIES:
                     p_emb = model.encode(p["text"]).tolist()
-                    score = cosine_similarity(embedding, p_emb)
-                    if score >= SEMANTIC_MATCH_THRESHOLD:
-                        hits.append({"policy_id": p["policy_id"], "policy_text": p["text"], "score": score})
+                    similarity = cosine_similarity(embedding, p_emb)
+                    if similarity >= SEMANTIC_MATCH_THRESHOLD:
+                        hits.append({"policy_id": p["policy_id"], "policy_text": p["text"], "score": similarity})
         # Sort and trim
         hits.sort(key=lambda x: x["score"], reverse=True)
         hits = hits[:top_k]
     else:
         # simple in-memory linear scan
         for p in POLICIES:
-            score = cosine_similarity(embedding, p["embedding"])
-            if score >= SEMANTIC_MATCH_THRESHOLD:
-                hits.append({"policy_id": p["policy_id"], "policy_text": p["text"], "score": score})
+            similarity = cosine_similarity(embedding, p["embedding"])
+            if similarity >= SEMANTIC_MATCH_THRESHOLD:
+                hits.append({"policy_id": p["policy_id"], "policy_text": p["text"], "score": similarity})
         hits.sort(key=lambda x: x["score"], reverse=True)
         hits = hits[:top_k]
     return hits
@@ -351,16 +355,27 @@ async def ingest_chunk(payload: Chunk):
         record["checked_by"] = "sync-check"
         return {"chunk_id": chunk_id, "status": "hit", "decision": decision}
 
-    # If keyword match exists (but no deterministic regex), we may still want to quick-path
-    # For salary keyword without numeric info, don't flag yet; enqueue for semantic/asynchronous check.
+    # If keyword match exists (but no deterministic regex), perform semantic search synchronously
     if kw:
-        # optionally could return low-confidence immediate result; here we choose to enqueue for semantic
-        await processing_queue.put({"chunk_id": chunk_id, "retries": 0})
-        return {"chunk_id": chunk_id, "status": "queued_for_semantic", "note": "keyword found; running semantic check in background"}
+        # Perform semantic search immediately
+        embedding = embed_text(text)
+        semantic_hits = semantic_search_against_policies(embedding, top_k=5)
+        decision = decide_policy_violation(record, kw, rx, semantic_hits)
+        record["decision"] = decision
+        record["checked_at"] = datetime.utcnow()
+        record["checked_by"] = "sync-semantic"
+        record["embedding"] = embedding  # store embedding for demo
+        return {"chunk_id": chunk_id, "status": "completed", "decision": decision, "note": "keyword found; semantic check completed synchronously"}
 
-    # No quick matches -> enqueue for full processing
-    await processing_queue.put({"chunk_id": chunk_id, "retries": 0})
-    return {"chunk_id": chunk_id, "status": "queued", "note": "no immediate hit; will run semantic check later"}
+    # No quick matches -> perform semantic search synchronously
+    embedding = embed_text(text)
+    semantic_hits = semantic_search_against_policies(embedding, top_k=5)
+    decision = decide_policy_violation(record, kw, rx, semantic_hits)
+    record["decision"] = decision
+    record["checked_at"] = datetime.utcnow()
+    record["checked_by"] = "sync-semantic"
+    record["embedding"] = embedding  # store embedding for demo
+    return {"chunk_id": chunk_id, "status": "completed", "decision": decision, "note": "no immediate hit; semantic check completed synchronously"}
 
 @app.get("/status/{chunk_id}")
 def get_status(chunk_id: str):
