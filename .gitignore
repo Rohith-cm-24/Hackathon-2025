@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.eggs/
+*.log
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Byte-compiled / cache
+.pytest_cache/
+.mypy_cache/
+.pyre/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build
+build/
+dist/
+site/
+
+# LanceDB data
+lancedb_policies/
+
+# Env files
+.env
+.env.* 
