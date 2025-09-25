@@ -5,6 +5,7 @@ import uuid
 import logging
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
+from uuid import UUID
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
@@ -12,6 +13,17 @@ from contextlib import asynccontextmanager
 
 # sentence-transformers for embeddings
 from sentence_transformers import SentenceTransformer
+
+# Import Supabase client
+import importlib.util
+import sys
+
+# Load the policy module with space in filename
+spec = importlib.util.spec_from_file_location("policy", "policy (1).py")
+policy_module = importlib.util.module_from_spec(spec)
+sys.modules["policy"] = policy_module
+spec.loader.exec_module(policy_module)
+supabase = policy_module.supabase
 
 # Try to import LanceDB; if not available, fallback to in-memory index
 try:
@@ -125,6 +137,26 @@ class Chunk(BaseModel):
     text: str
     source: Optional[str] = None
     metadata: Optional[dict] = None
+
+class IncidentCreateRequest(BaseModel):
+    id: UUID
+    resource_id: UUID
+    rule_id: UUID
+    channel: Optional[str] = None
+    entity_value: Optional[str] = None
+    action: Optional[str] = None
+    justification: Optional[str] = None
+    confidence: int = None
+
+class IncidentUpdateRequest(BaseModel):
+    id: UUID
+    rule_id: UUID
+    resource_id: UUID
+    channel: Optional[str] = None
+    entity_value: Optional[str] = None
+    action: Optional[str] = None
+    justification: Optional[str] = None
+    confidence: int = None
 
 # -------------------------
 # Utility functions: normalization, matching
@@ -409,6 +441,69 @@ def add_policy(policy_id: str, text: str):
         emb = model.encode(text).tolist()
         POLICIES.append({"policy_id": policy_id, "text": text, "embedding": emb})
         return {"status": "ok", "method": "in-memory"}
+
+# -------------------------
+# Incident endpoints
+# -------------------------
+@app.post("/incident")
+async def create_incident(payload: IncidentCreateRequest):
+    """Create a new incident in the Supabase incident table"""
+    try:
+        # Generate a new UUID for the incident
+        # incident_id = str(uuid.uuid4())
+        
+        # Prepare the data for insertion
+        incident_data = {
+            "id": str(payload.id),
+            "rule_id": str(payload.rule_id),
+            "resource_id": str(payload.resource_id),
+            "channel": payload.channel,
+            "entity_value": payload.entity_value,
+            "action": payload.action,
+            "confidence": payload.confidence,
+            "justification": payload.justification,
+            "created_at": datetime.utcnow().isoformat()
+        }
+        
+        # Insert into Supabase
+        result = supabase.table("incident").insert(incident_data).execute()
+        
+        if result.data:
+            return {"status": "success", "incident_id": str(payload.id), "data": result.data[0]}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to create incident")
+            
+    except Exception as e:
+        LOG.error(f"Error creating incident: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@app.put("/incident")
+async def update_incident(payload: IncidentUpdateRequest):
+    """Update an existing incident in the Supabase incident table"""
+    try:
+        # Prepare the data for update
+        update_data = {
+            "id": str(payload.id),
+            "resource_id": str(payload.resource_id),
+            "rule_id": str(payload.rule_id),
+            "channel": payload.channel,
+            "entity_value": payload.entity_value,
+            "action": payload.action,
+            "confidence": payload.confidence,
+            "justification": payload.justification
+        }
+        
+        # Update in Supabase
+        result = supabase.table("incident").update(update_data).eq("id", str(payload.id)).execute()
+        
+        if result.data:
+            return {"status": "success", "incident_id": str(payload.id), "data": result.data[0]}
+        else:
+            raise HTTPException(status_code=404, detail="Incident not found or no changes made")
+            
+    except Exception as e:
+        LOG.error(f"Error updating incident: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
 # -------------------------
